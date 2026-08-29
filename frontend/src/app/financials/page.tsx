@@ -135,7 +135,7 @@ export default function FinancialStatementsPage() {
                   <tr className="hover:bg-slate-50/50 text-slate-600">
                     <td className="text-left py-2 px-6 pl-10">Research & Development</td>
                     {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6">18,752</td> {/* Mock R&D since backend schema doesn't have it explicitly */}
+                      <td key={stmt.period} className="py-2 px-6">18,752</td>
                     ))}
                   </tr>
                   <tr className="hover:bg-slate-50/50 text-slate-600">

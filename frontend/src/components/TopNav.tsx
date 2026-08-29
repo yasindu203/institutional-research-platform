@@ -1,7 +1,12 @@
+"use client";
 import Link from "next/link";
-import { Search, Bell, Settings, LayoutDashboard, FileText, Briefcase, LineChart, Cpu, TrendingUp } from "lucide-react";
+import { Search, Bell, Settings, LayoutDashboard, FileText, Briefcase, LineChart, Cpu, TrendingUp, Plus } from "lucide-react";
+import { useState } from "react";
+import { UploadModal } from "./UploadModal";
 
 export function TopNav() {
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+
   return (
     <nav className="flex items-center justify-between border-b border-border bg-card px-6 py-3">
       <div className="flex items-center gap-8">
@@ -36,7 +41,14 @@ export function TopNav() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative hidden md:block">
+        <button 
+          onClick={() => setIsUploadOpen(true)}
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 font-semibold rounded-md text-sm transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Add Company
+        </button>
+
+        <div className="relative hidden lg:block">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
@@ -54,6 +66,8 @@ export function TopNav() {
           YM
         </div>
       </div>
+      
+      <UploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
     </nav>
   );
 }
