@@ -11,11 +11,22 @@ from app.api import (
     portfolio,
     advanced_research,
 )
+from contextlib import asynccontextmanager
+from app.db.database import engine, Base
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
 
 app = FastAPI(
     title="Fundamental Investment Research System (FIRS)",
     description="Institutional-grade investment research platform: 5-layer analytical architecture.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
