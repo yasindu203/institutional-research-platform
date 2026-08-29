@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Upload, X, FileText, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { useTicker } from "@/context/TickerContext";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface UploadModalProps {
 }
 
 export function UploadModal({ isOpen, onClose }: UploadModalProps) {
+  const { setGlobalTicker } = useTicker();
   const [ticker, setTicker] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "uploading" | "success" | "error">("idle");
@@ -33,9 +35,10 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
       });
       setStatus("success");
       setMessage(res.message || "Data extracted successfully.");
+      setGlobalTicker(ticker.toUpperCase());
     } catch (err: any) {
       setStatus("error");
-      setMessage(err.message || "Failed to upload and extract data.");
+      setMessage(err.message || "Failed to upload and extract data. The backend might be sleeping or unreachable.");
     }
   };
 

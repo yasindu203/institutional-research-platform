@@ -1,7 +1,26 @@
-import React from "react";
-import { Info, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, TrendingUp, TrendingDown, Clock } from "lucide-react";
+"use client";
+import React, { useState, useEffect } from "react";
+import { Info, AlertTriangle, CheckCircle, ArrowRight, ShieldCheck, TrendingUp, TrendingDown, Clock, Loader2 } from "lucide-react";
+import { useTicker } from "@/context/TickerContext";
 
 export default function OverviewPage() {
+  const { globalTicker } = useTicker();
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, [globalTicker]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-6">
       
@@ -9,11 +28,11 @@ export default function OverviewPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Apple Inc.</h1>
-            <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-700">AAPL</span>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">{globalTicker} Corporation</h1>
+            <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-700">{globalTicker}</span>
             <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-200 text-slate-700">NASDAQ</span>
           </div>
-          <p className="text-sm text-slate-500 mt-1">Consumer Electronics | Market Cap: $2.8T | P/E: 28.4x</p>
+          <p className="text-sm text-slate-500 mt-1">Technology | Market Cap: $1.2T | P/E: 24.5x</p>
         </div>
 
         <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">

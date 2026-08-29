@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, User, Users, ShieldAlert, CheckCircle, Scale, Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { useTicker } from "@/context/TickerContext";
 
 export default function GovernancePage() {
+  const { globalTicker } = useTicker();
   const [scoreData, setScoreData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,7 +39,7 @@ export default function GovernancePage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Governance & Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Apple Inc. (AAPL)</p>
+          <p className="text-sm text-slate-500 mt-1">{globalTicker} Corporation ({globalTicker})</p>
         </div>
       </div>
 

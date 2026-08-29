@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from "react";
 import { BrainCircuit, Play, BarChart2, Activity, Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { useTicker } from "@/context/TickerContext";
 
 export default function ForecastingPage() {
+  const { globalTicker } = useTicker();
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [modelType, setModelType] = useState("ensemble");
@@ -53,7 +55,7 @@ export default function ForecastingPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Forecasting Engine</h1>
-          <p className="text-sm text-slate-500 mt-1">Apple Inc. (AAPL) | Horizon: 5 Years</p>
+          <p className="text-sm text-slate-500 mt-1">{globalTicker} Corporation ({globalTicker}) | Horizon: 5 Years</p>
         </div>
         <div className="flex gap-2">
            <button 

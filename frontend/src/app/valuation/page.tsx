@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Calculator, Settings2, Loader2, RefreshCw } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { useTicker } from "@/context/TickerContext";
 
 export default function ValuationPage() {
+  const { globalTicker } = useTicker();
   const [inputs, setInputs] = useState({
     base_fcf: 100000,
     terminal_growth_rate: 0.025,
@@ -70,7 +72,7 @@ export default function ValuationPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Valuation Engine</h1>
-          <p className="text-sm text-slate-500 mt-1">Apple Inc. (AAPL) | Base Scenario (Mocked inputs for demo)</p>
+          <p className="text-sm text-slate-500 mt-1">{globalTicker} Corporation ({globalTicker}) | Base Scenario (Mocked inputs for demo)</p>
         </div>
       </div>
 
@@ -141,7 +143,7 @@ export default function ValuationPage() {
                 "Calculating..."
               ) : reverseDcfResult.implied_fcf_growth_rate !== null ? (
                 <>
-                  To justify the current market price of ${inputs.current_share_price.toFixed(2)}, AAPL must achieve <strong className="text-white">{(reverseDcfResult.implied_fcf_growth_rate * 100).toFixed(2)}% annualized FCF growth</strong> over the next 10 years, assuming a {(inputs.wacc * 100).toFixed(1)}% WACC and {(inputs.terminal_growth_rate * 100).toFixed(1)}% terminal rate.
+                  To justify the current market price of ${inputs.current_share_price.toFixed(2)}, {globalTicker} must achieve <strong className="text-white">{(reverseDcfResult.implied_fcf_growth_rate * 100).toFixed(2)}% annualized FCF growth</strong> over the next 10 years, assuming a {(inputs.wacc * 100).toFixed(1)}% WACC and {(inputs.terminal_growth_rate * 100).toFixed(1)}% terminal rate.
                 </>
               ) : (
                 "Could not calculate implied growth (price may be too high to justify within normal constraints)."

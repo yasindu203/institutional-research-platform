@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { Table, Search, Download, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { useTicker } from "@/context/TickerContext";
 
 export default function FinancialStatementsPage() {
-  const [ticker, setTicker] = useState("AAPL");
+  const { globalTicker, setGlobalTicker } = useTicker();
+  const [localTicker, setLocalTicker] = useState(globalTicker);
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +26,13 @@ export default function FinancialStatementsPage() {
   };
 
   useEffect(() => {
-    loadData("AAPL");
-  }, []);
+    setLocalTicker(globalTicker);
+    loadData(globalTicker);
+  }, [globalTicker]);
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      loadData(ticker);
+    if (e.key === 'Enter' && localTicker.trim()) {
+      setGlobalTicker(localTicker.trim().toUpperCase());
     }
   };
 
@@ -50,8 +53,8 @@ export default function FinancialStatementsPage() {
              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
              <input 
                type="text" 
-               value={ticker}
-               onChange={(e) => setTicker(e.target.value.toUpperCase())}
+               value={localTicker}
+               onChange={(e) => setLocalTicker(e.target.value.toUpperCase())}
                onKeyDown={handleSearch}
                placeholder="Search ticker (e.g. AAPL) + Enter" 
                className="text-sm pl-9 pr-4 py-1.5 border border-slate-200 rounded bg-white w-64 focus:outline-none focus:ring-1 focus:ring-primary" 
