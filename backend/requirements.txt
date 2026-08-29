@@ -9,3 +9,4 @@ pandas
 aiosqlite
 python-multipart
 httpx
+yfinance==1.7.0

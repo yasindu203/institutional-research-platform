@@ -1,7 +1,8 @@
 "use client";
 import React, { useState } from "react";
-import { PieChart, Briefcase, Plus, Filter, SlidersHorizontal, ArrowUpRight, Loader2 } from "lucide-react";
+import { Briefcase, Plus, Filter, SlidersHorizontal, ArrowUpRight, Loader2, PieChart as PieChartIcon } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState([
@@ -13,6 +14,13 @@ export default function PortfolioPage() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [optResult, setOptResult] = useState<any>(null);
+
+  const sectorData = [
+    { name: 'Technology', value: 45, color: 'var(--primary)' },
+    { name: 'Financials', value: 22, color: '#2dd4bf' },
+    { name: 'Healthcare', value: 15, color: '#99f6e4' },
+    { name: 'Consumer Disc', value: 18, color: '#cbd5e1' },
+  ];
 
   const runOptimization = async () => {
     setIsLoading(true);
@@ -138,10 +146,31 @@ export default function PortfolioPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
             <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-800 flex items-center justify-between">
-              <span className="flex items-center gap-2"><PieChart className="w-4 h-4" /> Sector Allocation</span>
+              <span className="flex items-center gap-2"><PieChartIcon className="w-4 h-4" /> Sector Allocation</span>
             </div>
-            <div className="p-6 h-[250px] flex items-center justify-center bg-slate-50/30">
-               <p className="text-slate-400 text-sm font-medium">Recharts PieChart renders here</p>
+            <div className="p-6 h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={sectorData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {sectorData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: any) => [`${value}%`, 'Allocation']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
             <div className="border-t border-slate-100 p-4 space-y-2 text-sm">
               <div className="flex justify-between items-center">

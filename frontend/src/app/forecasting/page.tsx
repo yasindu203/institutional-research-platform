@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { BrainCircuit, Play, BarChart2, Activity, Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 import { useTicker } from "@/context/TickerContext";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ForecastingPage() {
   const { globalTicker } = useTicker();
@@ -101,11 +102,44 @@ export default function ForecastingPage() {
              <span className="text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded">USD Millions</span>
           </div>
           
-          <div className="p-6 overflow-x-auto">
+          <div className="p-6">
             {isLoading || !result ? (
               <div className="flex justify-center items-center h-48"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
             ) : (
-              <table className="w-full text-sm text-right tabular-nums">
+              <>
+                {/* Line Chart */}
+                <div className="h-[250px] w-full mb-6">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={
+                        modelType === "ensemble" 
+                          ? result.ensemble_forecast.map((val: number, i: number) => ({ name: `Year ${i+1}`, value: Math.round(val) }))
+                          : modelType === "baseline"
+                          ? result.projected_values.map((val: number, i: number) => ({ name: `Year ${i+1}`, value: Math.round(val) }))
+                          : result.map((r: any, i: number) => ({ name: `Year ${i+1}`, value: Math.round(r.revenue) }))
+                      }
+                      margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 12, fill: '#64748b' }} 
+                        tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} 
+                      />
+                      <Tooltip 
+                        formatter={(value: any) => [`$${Number(value).toLocaleString()}`, 'Forecast']}
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Data Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-right tabular-nums">
                 <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                   <tr>
                     <th className="text-left py-2 px-4">Metric</th>
@@ -151,6 +185,8 @@ export default function ForecastingPage() {
                   )}
                 </tbody>
               </table>
+                </div>
+              </>
             )}
           </div>
 

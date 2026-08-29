@@ -36,6 +36,35 @@ export default function FinancialStatementsPage() {
     }
   };
 
+  const handleExport = () => {
+    if (!data || !data.statements) return;
+    
+    const periods = data.statements.map((s: any) => s.period);
+    let csv = `Line Item,${periods.join(',')}\n`;
+    
+    const rows = [
+      { name: "Total Revenue", key: "revenue" },
+      { name: "Cost of Goods Sold", key: "cogs" },
+      { name: "Operating Expenses", key: "operating_expenses" },
+      { name: "Operating Income", key: "operating_income" },
+      { name: "Net Income", key: "net_income" }
+    ];
+
+    rows.forEach(row => {
+      const values = data.statements.map((s: any) => s.income_statement[row.key] || 0);
+      csv += `${row.name},${values.join(',')}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${data.ticker}_financials.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-6">
       
@@ -60,7 +89,7 @@ export default function FinancialStatementsPage() {
                className="text-sm pl-9 pr-4 py-1.5 border border-slate-200 rounded bg-white w-64 focus:outline-none focus:ring-1 focus:ring-primary" 
              />
           </div>
-          <button className="px-3 py-1.5 text-sm font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center gap-2">
+          <button onClick={handleExport} className="px-3 py-1.5 text-sm font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center gap-2">
             <Download className="w-4 h-4" /> Export
           </button>
         </div>
