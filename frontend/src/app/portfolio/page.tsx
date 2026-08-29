@@ -1,7 +1,60 @@
-import React from "react";
-import { PieChart, Briefcase, Plus, Filter, SlidersHorizontal, ArrowUpRight } from "lucide-react";
+"use client";
+import React, { useState } from "react";
+import { PieChart, Briefcase, Plus, Filter, SlidersHorizontal, ArrowUpRight, Loader2 } from "lucide-react";
+import { fetchApi } from "@/lib/api";
 
 export default function PortfolioPage() {
+  const [holdings, setHoldings] = useState([
+    { ticker: "MSFT", weight: 0.125, cost_basis: 285.40, current_price: 415.20, utility_score: 88 },
+    { ticker: "AAPL", weight: 0.102, cost_basis: 150.25, current_price: 185.20, utility_score: 85 },
+    { ticker: "GOOGL", weight: 0.098, cost_basis: 110.50, current_price: 145.80, utility_score: 82 },
+    { ticker: "V", weight: 0.054, cost_basis: 220.10, current_price: 275.40, utility_score: 91 },
+    { ticker: "CRM", weight: 0.048, cost_basis: 280.50, current_price: 295.20, utility_score: 89 }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [optResult, setOptResult] = useState<any>(null);
+
+  const runOptimization = async () => {
+    setIsLoading(true);
+    try {
+      const payload = {
+        holdings: holdings.map(h => ({
+          ticker: h.ticker,
+          weight: h.weight,
+          cost_basis: h.cost_basis,
+          current_price: h.current_price,
+          utility_score: h.utility_score,
+          // mock backend expected fields
+          expected_return_score: h.utility_score,
+          quality_score: h.utility_score,
+          moat_score: h.utility_score,
+          governance_score: h.utility_score,
+          valuation_score: h.utility_score,
+          volatility: 0.20
+        }))
+      };
+
+      const data = await fetchApi('api/v1/portfolio/optimise', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      setOptResult(data);
+      
+      // Update weights based on optimization result
+      if (data.optimal_weights) {
+        setHoldings(prev => prev.map(h => ({
+          ...h,
+          weight: data.optimal_weights[h.ticker] || h.weight
+        })));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-6">
       
@@ -35,8 +88,8 @@ export default function PortfolioPage() {
           <p className="text-2xl font-bold text-slate-900 mt-2">24.5%</p>
         </div>
         <div className="bg-white rounded-md border border-slate-200 shadow-sm p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Weighted FCF Yield</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">4.1%</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sharpe Ratio</p>
+          <p className="text-2xl font-bold text-slate-900 mt-2">{optResult ? optResult.expected_sharpe.toFixed(2) : "1.85"}</p>
         </div>
         <div className="bg-white rounded-md border border-slate-200 shadow-sm p-4">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Overall Utility Score</p>
@@ -64,46 +117,19 @@ export default function PortfolioPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                <tr className="hover:bg-slate-50/50">
-                  <td className="text-left py-3 px-4 font-bold text-slate-900">MSFT</td>
-                  <td className="py-3 px-4">12.5%</td>
-                  <td className="py-3 px-4">$285.40</td>
-                  <td className="py-3 px-4 font-semibold">$415.20</td>
-                  <td className="py-3 px-4 text-green-600 font-semibold">+45.4%</td>
-                  <td className="py-3 px-4 font-bold text-primary">88</td>
-                </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="text-left py-3 px-4 font-bold text-slate-900">AAPL</td>
-                  <td className="py-3 px-4">10.2%</td>
-                  <td className="py-3 px-4">$150.25</td>
-                  <td className="py-3 px-4 font-semibold">$185.20</td>
-                  <td className="py-3 px-4 text-green-600 font-semibold">+23.2%</td>
-                  <td className="py-3 px-4 font-bold text-primary">85</td>
-                </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="text-left py-3 px-4 font-bold text-slate-900">GOOGL</td>
-                  <td className="py-3 px-4">9.8%</td>
-                  <td className="py-3 px-4">$110.50</td>
-                  <td className="py-3 px-4 font-semibold">$145.80</td>
-                  <td className="py-3 px-4 text-green-600 font-semibold">+31.9%</td>
-                  <td className="py-3 px-4 font-bold text-primary">82</td>
-                </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="text-left py-3 px-4 font-bold text-slate-900">V</td>
-                  <td className="py-3 px-4">5.4%</td>
-                  <td className="py-3 px-4">$220.10</td>
-                  <td className="py-3 px-4 font-semibold">$275.40</td>
-                  <td className="py-3 px-4 text-green-600 font-semibold">+25.1%</td>
-                  <td className="py-3 px-4 font-bold text-primary">91</td>
-                </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="text-left py-3 px-4 font-bold text-slate-900">CRM</td>
-                  <td className="py-3 px-4">4.8%</td>
-                  <td className="py-3 px-4">$280.50</td>
-                  <td className="py-3 px-4 font-semibold">$295.20</td>
-                  <td className="py-3 px-4 text-green-600 font-semibold">+5.2%</td>
-                  <td className="py-3 px-4 font-bold text-primary">89</td>
-                </tr>
+                {holdings.map((h, i) => {
+                  const pnl = ((h.current_price - h.cost_basis) / h.cost_basis) * 100;
+                  return (
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="text-left py-3 px-4 font-bold text-slate-900">{h.ticker}</td>
+                      <td className={`py-3 px-4 font-semibold ${optResult ? 'text-primary' : ''}`}>{(h.weight * 100).toFixed(1)}%</td>
+                      <td className="py-3 px-4">${h.cost_basis.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-semibold">${h.current_price.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-green-600 font-semibold">+{pnl.toFixed(1)}%</td>
+                      <td className="py-3 px-4 font-bold text-primary">{h.utility_score}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -142,9 +168,17 @@ export default function PortfolioPage() {
             <p className="text-sm text-slate-300 mb-4 leading-relaxed">
               Run robust optimization based on fundamental utility factors rather than purely Markowitz mean-variance.
             </p>
-            <button className="w-full py-2 bg-primary hover:bg-primary/90 text-white font-bold rounded text-sm transition-colors">
+            <button 
+              onClick={runOptimization}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-primary hover:bg-primary/90 text-white font-bold rounded text-sm transition-colors disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Run Utility Optimization
             </button>
+            {optResult && (
+              <p className="mt-3 text-xs text-green-400 text-center">Weights successfully optimized via Max Sharpe proxy.</p>
+            )}
           </div>
         </div>
 
