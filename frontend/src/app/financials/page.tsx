@@ -1,8 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Table, Search, Download, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Search, Download, CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 import { useTicker } from "@/context/TickerContext";
+
+type StatementTab = "income" | "balance" | "cashflow" | "ratios";
 
 export default function FinancialStatementsPage() {
   const { globalTicker, setGlobalTicker } = useTicker();
@@ -10,6 +12,7 @@ export default function FinancialStatementsPage() {
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<StatementTab>("income");
 
   const loadData = async (searchTicker: string) => {
     setIsLoading(true);
@@ -38,10 +41,8 @@ export default function FinancialStatementsPage() {
 
   const handleExport = () => {
     if (!data || !data.statements) return;
-    
     const periods = data.statements.map((s: any) => s.period);
     let csv = `Line Item,${periods.join(',')}\n`;
-    
     const rows = [
       { name: "Total Revenue", key: "revenue" },
       { name: "Cost of Goods Sold", key: "cogs" },
@@ -49,12 +50,10 @@ export default function FinancialStatementsPage() {
       { name: "Operating Income", key: "operating_income" },
       { name: "Net Income", key: "net_income" }
     ];
-
     rows.forEach(row => {
-      const values = data.statements.map((s: any) => s.income_statement[row.key] || 0);
+      const values = data.statements.map((s: any) => s.income_statement?.[row.key] || 0);
       csv += `${row.name},${values.join(',')}\n`;
     });
-
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -64,6 +63,13 @@ export default function FinancialStatementsPage() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const TABS: { id: StatementTab; label: string }[] = [
+    { id: "income", label: "Income Statement" },
+    { id: "balance", label: "Balance Sheet" },
+    { id: "cashflow", label: "Cash Flow" },
+    { id: "ratios", label: "Key Ratios" },
+  ];
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-6">
@@ -109,11 +115,21 @@ export default function FinancialStatementsPage() {
         </div>
       ) : data ? (
         <>
+          {/* Sub-tabs */}
           <div className="flex gap-1 border-b border-border">
-            <button className="px-4 py-2 border-b-2 border-primary text-primary font-bold text-sm">Income Statement</button>
-            <button className="px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-900 font-semibold text-sm">Balance Sheet</button>
-            <button className="px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-900 font-semibold text-sm">Cash Flow</button>
-            <button className="px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-900 font-semibold text-sm">Ratios</button>
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 border-b-2 font-semibold text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? "border-primary text-primary"
+                    : "border-transparent text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Trust & Reconciliation Score */}
@@ -131,74 +147,155 @@ export default function FinancialStatementsPage() {
             </div>
           </div>
 
-          {/* Statement Table */}
-          <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-right tabular-nums">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
-                  <tr>
-                    <th className="text-left font-medium py-3 px-6">Line Item</th>
-                    {data.statements.map((stmt: any) => (
-                      <th key={stmt.period} className="font-medium py-3 px-6">{stmt.period}</th>
+          {/* Income Statement */}
+          {activeTab === "income" && (
+            <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right tabular-nums">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="text-left font-medium py-3 px-6">Line Item</th>
+                      {data.statements.map((stmt: any) => (
+                        <th key={stmt.period} className="font-medium py-3 px-6">{stmt.period}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      { label: "Total Revenue", key: "revenue", bold: true },
+                      { label: "Cost of Goods Sold", key: "cogs", indent: true },
+                      { label: "Gross Profit", computed: (s: any) => (s.income_statement?.revenue || 0) - (s.income_statement?.cogs || 0), bold: true, highlight: true },
+                      { label: "Operating Expenses (SG&A)", key: "operating_expenses", indent: true },
+                      { label: "Operating Income (EBIT)", key: "operating_income", bold: true, highlight: true },
+                      { label: "Net Income", key: "net_income", bold: true, highlight: true },
+                    ].map(({ label, key, computed, bold, indent, highlight }) => (
+                      <tr key={label} className={`hover:bg-slate-50/50 ${highlight ? "bg-slate-50" : ""}`}>
+                        <td className={`text-left py-2 px-6 ${bold ? "font-semibold text-slate-900" : "text-slate-600"} ${indent ? "pl-10" : ""}`}>{label}</td>
+                        {data.statements.map((stmt: any) => {
+                          const val = computed ? computed(stmt) : stmt.income_statement?.[key!];
+                          return (
+                            <td key={stmt.period} className={`py-2 px-6 ${bold ? "font-semibold text-slate-900" : ""}`}>
+                              {val != null ? Math.round(val).toLocaleString() : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr className="hover:bg-slate-50/50">
-                    <td className="text-left py-2 px-6 font-semibold text-slate-900">Total Revenue</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6">{stmt.income_statement.revenue.toLocaleString()}</td>
-                    ))}
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 text-slate-600">
-                    <td className="text-left py-2 px-6 pl-10">Cost of Goods Sold</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6">{stmt.income_statement.cogs.toLocaleString()}</td>
-                    ))}
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50">
-                    <td className="text-left py-2 px-6 font-semibold text-slate-900">Gross Profit</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6 font-semibold text-slate-900">
-                        {(stmt.income_statement.revenue - stmt.income_statement.cogs).toLocaleString()}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 text-slate-600">
-                    <td className="text-left py-2 px-6 pl-10">Research & Development</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6">18,752</td>
-                    ))}
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 text-slate-600">
-                    <td className="text-left py-2 px-6 pl-10">SG&A</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6">{stmt.income_statement.operating_expenses.toLocaleString()}</td>
-                    ))}
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50 border-t-2 border-slate-200">
-                    <td className="text-left py-2 px-6 font-bold text-slate-900">Operating Income (EBIT)</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6 font-bold text-slate-900">
-                        {stmt.income_statement.operating_income.toLocaleString()}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50 border-t-2 border-slate-200 mt-4">
-                    <td className="text-left py-2 px-6 font-bold text-slate-900">Net Income</td>
-                    {data.statements.map((stmt: any) => (
-                      <td key={stmt.period} className="py-2 px-6 font-bold text-slate-900">
-                        {stmt.income_statement.net_income.toLocaleString()}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Balance Sheet */}
+          {activeTab === "balance" && (
+            <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right tabular-nums">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="text-left font-medium py-3 px-6">Line Item</th>
+                      {data.statements.map((stmt: any) => (
+                        <th key={stmt.period} className="font-medium py-3 px-6">{stmt.period}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {data.statements[0]?.balance_sheet && Object.keys(data.statements[0].balance_sheet).length > 0 ? (
+                      Object.keys(data.statements[0].balance_sheet).map((key) => (
+                        <tr key={key} className="hover:bg-slate-50/50">
+                          <td className="text-left py-2 px-6 text-slate-600 capitalize">{key.replace(/_/g, ' ')}</td>
+                          {data.statements.map((stmt: any) => (
+                            <td key={stmt.period} className="py-2 px-6">
+                              {stmt.balance_sheet?.[key] != null ? Math.round(stmt.balance_sheet[key]).toLocaleString() : "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={data.statements.length + 1} className="py-12 text-center text-slate-400 text-sm">
+                          Balance sheet detail not available via live data feed. Upload a financial report PDF to extract full balance sheet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Cash Flow */}
+          {activeTab === "cashflow" && (
+            <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right tabular-nums">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="text-left font-medium py-3 px-6">Line Item</th>
+                      {data.statements.map((stmt: any) => (
+                        <th key={stmt.period} className="font-medium py-3 px-6">{stmt.period}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {data.statements[0]?.cash_flow && Object.keys(data.statements[0].cash_flow).length > 0 ? (
+                      Object.keys(data.statements[0].cash_flow).map((key) => (
+                        <tr key={key} className="hover:bg-slate-50/50">
+                          <td className="text-left py-2 px-6 text-slate-600 capitalize">{key.replace(/_/g, ' ')}</td>
+                          {data.statements.map((stmt: any) => (
+                            <td key={stmt.period} className="py-2 px-6">
+                              {stmt.cash_flow?.[key] != null ? Math.round(stmt.cash_flow[key]).toLocaleString() : "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={data.statements.length + 1} className="py-12 text-center text-slate-400 text-sm">
+                          Cash flow detail not available via live data feed. Upload a financial report PDF to extract full statement.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Ratios */}
+          {activeTab === "ratios" && (
+            <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right tabular-nums">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                    <tr>
+                      <th className="text-left font-medium py-3 px-6">Ratio</th>
+                      {data.statements.map((stmt: any) => (
+                        <th key={stmt.period} className="font-medium py-3 px-6">{stmt.period}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      { label: "Gross Margin", fn: (s: any) => { const r = s.income_statement?.revenue; const c = s.income_statement?.cogs; return r && c ? `${(((r - c) / r) * 100).toFixed(1)}%` : "—"; } },
+                      { label: "EBIT Margin", fn: (s: any) => { const r = s.income_statement?.revenue; const o = s.income_statement?.operating_income; return r && o ? `${((o / r) * 100).toFixed(1)}%` : "—"; } },
+                      { label: "Net Margin", fn: (s: any) => { const r = s.income_statement?.revenue; const n = s.income_statement?.net_income; return r && n ? `${((n / r) * 100).toFixed(1)}%` : "—"; } },
+                    ].map(({ label, fn }) => (
+                      <tr key={label} className="hover:bg-slate-50/50">
+                        <td className="text-left py-3 px-6 font-medium text-slate-700">{label}</td>
+                        {data.statements.map((stmt: any) => (
+                          <td key={stmt.period} className="py-3 px-6 font-semibold text-slate-900">{fn(stmt)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       ) : null}
-
     </div>
   );
 }

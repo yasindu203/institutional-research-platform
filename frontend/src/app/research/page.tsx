@@ -1,7 +1,8 @@
 "use client";
 import React, { useState } from "react";
-import { MessageSquare, Sparkles, FileText, Send, Link as LinkIcon, Loader2 } from "lucide-react";
+import { MessageSquare, Sparkles, FileText, Send, Loader2, Zap } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { useTicker } from "@/context/TickerContext";
 
 type Message = {
   id: string;
@@ -10,27 +11,36 @@ type Message = {
 };
 
 export default function ResearchPage() {
+  const { globalTicker } = useTicker();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'ai',
-      content: "I am connected to the FIRS Research Engine via OpenRouter. How can I help you today? You can ask me to run a Socratic challenge on your thesis, or I can search the web if you ask for it.",
+      content: `I am connected to the FIRS Research Engine. I'm ready to analyze ${globalTicker}. Ask me about the company's moat, financials, risks, or anything else.`,
     }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sources, setSources] = useState<any[]>([]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const SUGGESTED_PROMPTS = [
+    `What is ${globalTicker}'s competitive moat?`,
+    `What are the key risks for ${globalTicker}?`,
+    `Search latest ${globalTicker} news`,
+    `How does ${globalTicker} generate revenue?`,
+    `What could invalidate the ${globalTicker} bull thesis?`,
+  ];
 
-    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: input };
+  const handleSend = async (overrideInput?: string) => {
+    const query = overrideInput ?? input;
+    if (!query.trim() || isLoading) return;
+
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
 
     try {
-      // Basic heuristic: if user says "search" or "latest", run a web search first for context
       let context = "";
       if (userMessage.content.toLowerCase().includes("search") || userMessage.content.toLowerCase().includes("latest")) {
         setMessages(prev => [...prev, { id: 'search-status', role: 'ai', content: 'Searching the web via Tavily...' }]);
@@ -38,36 +48,21 @@ export default function ResearchPage() {
           method: 'POST',
           body: JSON.stringify({ query: userMessage.content, max_results: 3 })
         });
-        
         if (searchData.results) {
           context = "Web Search Results:\\n" + searchData.results.map((r: any) => `Source: ${r.title}\\nContent: ${r.content}`).join('\\n\\n');
           setSources(searchData.results);
         }
-        // Remove the search status message
         setMessages(prev => prev.filter(m => m.id !== 'search-status'));
       }
 
       const data = await fetchApi('api/v1/research/query', {
         method: 'POST',
-        body: JSON.stringify({ 
-          query: userMessage.content, 
-          context: context || undefined,
-          task_type: "rag_qa" 
-        }),
+        body: JSON.stringify({ query: userMessage.content, context: context || undefined, task_type: "rag_qa" }),
       });
 
-      setMessages(prev => [...prev, { 
-        id: Date.now().toString(), 
-        role: 'ai', 
-        content: data.content 
-      }]);
-
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'ai', content: data.content }]);
     } catch (err: any) {
-      setMessages(prev => [...prev, { 
-        id: Date.now().toString(), 
-        role: 'ai', 
-        content: `Error: ${err.message}` 
-      }]);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'ai', content: `Error: ${err.message}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -118,6 +113,20 @@ export default function ResearchPage() {
 
         {/* Input Area */}
         <div className="p-4 bg-white border-t border-slate-200">
+          {/* Suggested Prompts */}
+          <div className="max-w-4xl mx-auto mb-3 flex gap-2 flex-wrap">
+            {SUGGESTED_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => handleSend(prompt)}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 text-slate-600 hover:bg-primary/5 hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-40"
+              >
+                <Zap className="w-3 h-3" />
+                {prompt}
+              </button>
+            ))}
+          </div>
           <div className="max-w-4xl mx-auto relative flex gap-2">
             <input 
               type="text" 
@@ -128,7 +137,7 @@ export default function ResearchPage() {
               className="w-full border border-slate-300 rounded-lg pl-4 pr-12 py-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
             />
             <button 
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={isLoading || !input.trim()}
               className="absolute right-2 top-2 bottom-2 bg-primary text-white rounded p-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
             >

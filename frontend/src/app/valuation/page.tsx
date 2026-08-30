@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { Calculator, Settings2, Loader2, RefreshCw } from "lucide-react";
+import { Calculator, Settings2, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 import { useTicker } from "@/context/TickerContext";
 
@@ -10,15 +10,46 @@ export default function ValuationPage() {
     base_fcf: 100000,
     terminal_growth_rate: 0.025,
     wacc: 0.082,
-    net_debt: -57263, // AAPL roughly has more cash than debt -> net cash
+    net_debt: -57263,
     shares_outstanding: 15550,
     current_share_price: 185.20,
     fcf_growth_rates: [0.10, 0.09, 0.08, 0.07, 0.06]
   });
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [liveDataLoading, setLiveDataLoading] = useState(false);
 
   const [dcfResult, setDcfResult] = useState<any>(null);
   const [reverseDcfResult, setReverseDcfResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch live company data and auto-populate inputs when ticker changes
+  useEffect(() => {
+    const loadCompanyData = async () => {
+      setLiveDataLoading(true);
+      try {
+        const data = await fetchApi(`api/v1/company/${globalTicker}`);
+        setCompanyInfo(data);
+
+        const fcf = data.free_cash_flow_m || 100000;
+        const shares = data.shares_outstanding_m || 15550;
+        const price = data.current_price || 185.20;
+        const netDebt = data.net_debt_m || -57263;
+
+        setInputs(prev => ({
+          ...prev,
+          base_fcf: Math.round(fcf),
+          shares_outstanding: Math.round(shares),
+          current_share_price: parseFloat(price.toFixed(2)),
+          net_debt: Math.round(netDebt),
+        }));
+      } catch (e) {
+        console.error("Failed to load company data for valuation:", e);
+      } finally {
+        setLiveDataLoading(false);
+      }
+    };
+    loadCompanyData();
+  }, [globalTicker]);
 
   const calculateValuation = useCallback(async () => {
     setIsLoading(true);
@@ -48,7 +79,6 @@ export default function ValuationPage() {
           })
         })
       ]);
-
       setDcfResult(dcf);
       setReverseDcfResult(revDcf);
     } catch (err) {
@@ -58,10 +88,12 @@ export default function ValuationPage() {
     }
   }, [inputs]);
 
-  // Run initial calculation
+  // Auto-run valuation whenever inputs change
   useEffect(() => {
-    calculateValuation();
-  }, [calculateValuation]);
+    if (!liveDataLoading) {
+      calculateValuation();
+    }
+  }, [liveDataLoading]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
     setInputs(prev => ({ ...prev, [key]: parseFloat(e.target.value) }));
@@ -72,7 +104,15 @@ export default function ValuationPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Valuation Engine</h1>
-          <p className="text-sm text-slate-500 mt-1">{globalTicker} Corporation ({globalTicker}) | Base Scenario (Mocked inputs for demo)</p>
+          <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+            {companyInfo ? `${companyInfo.name} (${globalTicker})` : `${globalTicker}`}
+            {liveDataLoading && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
+            {companyInfo && !liveDataLoading && (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
+                ✓ Live inputs loaded
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -83,16 +123,39 @@ export default function ValuationPage() {
           <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
             <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-800 flex items-center gap-2">
               <Settings2 className="w-4 h-4" /> DCF Assumptions
+              {liveDataLoading && <Loader2 className="w-3 h-3 animate-spin text-slate-400 ml-auto" />}
             </div>
             <div className="p-4 space-y-5">
               
+              {/* Live inputs display */}
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-md border border-slate-100 text-xs">
+                <div>
+                  <p className="text-slate-400">Base FCF (M)</p>
+                  <p className="font-bold text-slate-800">${inputs.base_fcf.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Shares Out. (M)</p>
+                  <p className="font-bold text-slate-800">{inputs.shares_outstanding.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Live Price</p>
+                  <p className="font-bold text-slate-800">${inputs.current_share_price.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Net Debt / (Cash)</p>
+                  <p className={`font-bold ${inputs.net_debt < 0 ? "text-green-600" : "text-red-600"}`}>
+                    ${inputs.net_debt.toLocaleString()}M
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600 font-medium">Terminal Growth Rate</span>
                   <span className="font-bold text-slate-900">{(inputs.terminal_growth_rate * 100).toFixed(1)}%</span>
                 </div>
                 <input 
-                  type="range" className="w-full" min="0" max="0.05" step="0.001" 
+                  type="range" className="w-full accent-primary" min="0" max="0.05" step="0.001" 
                   value={inputs.terminal_growth_rate} 
                   onChange={e => handleSliderChange(e, 'terminal_growth_rate')} 
                 />
@@ -104,7 +167,7 @@ export default function ValuationPage() {
                   <span className="font-bold text-slate-900">{(inputs.wacc * 100).toFixed(1)}%</span>
                 </div>
                 <input 
-                  type="range" className="w-full" min="0.05" max="0.15" step="0.001" 
+                  type="range" className="w-full accent-primary" min="0.05" max="0.15" step="0.001" 
                   value={inputs.wacc} 
                   onChange={e => handleSliderChange(e, 'wacc')} 
                 />
@@ -116,7 +179,7 @@ export default function ValuationPage() {
                   <span className="font-bold text-slate-900">{inputs.current_share_price.toFixed(2)}</span>
                 </div>
                 <input 
-                  type="range" className="w-full" min="50" max="300" step="0.5" 
+                  type="range" className="w-full accent-primary" min="0.1" max="1000" step="0.5" 
                   value={inputs.current_share_price} 
                   onChange={e => handleSliderChange(e, 'current_share_price')} 
                 />
@@ -132,7 +195,6 @@ export default function ValuationPage() {
                   Recalculate Model
                 </button>
               </div>
-
             </div>
           </div>
           
@@ -143,10 +205,10 @@ export default function ValuationPage() {
                 "Calculating..."
               ) : reverseDcfResult.implied_fcf_growth_rate !== null ? (
                 <>
-                  To justify the current market price of ${inputs.current_share_price.toFixed(2)}, {globalTicker} must achieve <strong className="text-white">{(reverseDcfResult.implied_fcf_growth_rate * 100).toFixed(2)}% annualized FCF growth</strong> over the next 10 years, assuming a {(inputs.wacc * 100).toFixed(1)}% WACC and {(inputs.terminal_growth_rate * 100).toFixed(1)}% terminal rate.
+                  To justify the current price of <strong className="text-white">${inputs.current_share_price.toFixed(2)}</strong>, {globalTicker} must achieve <strong className="text-white">{(reverseDcfResult.implied_fcf_growth_rate * 100).toFixed(2)}% annualized FCF growth</strong> over the next 10 years, assuming a {(inputs.wacc * 100).toFixed(1)}% WACC and {(inputs.terminal_growth_rate * 100).toFixed(1)}% terminal rate.
                 </>
               ) : (
-                "Could not calculate implied growth (price may be too high to justify within normal constraints)."
+                "Could not calculate implied growth rate within normal constraints."
               )}
             </p>
           </div>
@@ -156,7 +218,7 @@ export default function ValuationPage() {
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-md border border-slate-200 shadow-sm overflow-hidden">
             <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-800 flex items-center justify-between">
-               <span className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Valuation Waterfall</span>
+               <span className="flex items-center gap-2"><Calculator className="w-4 h-4" /> DCF Valuation Waterfall</span>
                <span className="text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded">USD Millions</span>
             </div>
             
@@ -180,7 +242,7 @@ export default function ValuationPage() {
                     </tr>
                     <tr className="hover:bg-slate-50">
                       <td className="py-3 px-4 font-medium text-slate-700 pl-8">Less: Net Debt (Negative = Net Cash)</td>
-                      <td className="py-3 px-4 text-right text-red-700">{(inputs.net_debt).toLocaleString()}</td>
+                      <td className={`py-3 px-4 text-right font-semibold ${inputs.net_debt < 0 ? "text-green-600" : "text-red-700"}`}>{inputs.net_debt.toLocaleString()}</td>
                     </tr>
                     <tr className="bg-primary/5 border-t border-primary/20">
                       <td className="py-3 px-4 font-bold text-primary">Implied Equity Value</td>
@@ -199,8 +261,39 @@ export default function ValuationPage() {
               )}
             </div>
           </div>
-        </div>
 
+          {/* Upside/Downside vs Current Price */}
+          {dcfResult && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                {
+                  label: "Implied Price",
+                  value: `$${dcfResult.implied_share_price.toFixed(2)}`,
+                  sub: "DCF intrinsic value",
+                  color: "text-primary"
+                },
+                {
+                  label: "Current Market Price",
+                  value: `$${inputs.current_share_price.toFixed(2)}`,
+                  sub: "Live from Yahoo Finance",
+                  color: "text-slate-900"
+                },
+                {
+                  label: "Upside / (Downside)",
+                  value: `${(((dcfResult.implied_share_price - inputs.current_share_price) / inputs.current_share_price) * 100).toFixed(1)}%`,
+                  sub: "Margin of safety",
+                  color: dcfResult.implied_share_price > inputs.current_share_price ? "text-green-600" : "text-red-600"
+                }
+              ].map(({ label, value, sub, color }) => (
+                <div key={label} className="bg-white rounded-md border border-slate-200 shadow-sm p-4 text-center">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+                  <p className={`text-2xl font-bold mt-2 tabular-nums ${color}`}>{value}</p>
+                  <p className="text-xs text-slate-400 mt-1">{sub}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

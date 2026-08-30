@@ -10,6 +10,7 @@ from app.api import (
     forecast,
     portfolio,
     advanced_research,
+    company,
 )
 from contextlib import asynccontextmanager
 from app.db.database import engine, Base
@@ -36,6 +37,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Company metadata (yfinance-powered)
+app.include_router(company.router, prefix="/api/v1/company", tags=["Company Info"])
 
 # Phase 1 — Core Financial Engine
 app.include_router(financials.router, prefix="/api/v1/financials", tags=["Phase 1 — Financials"])
